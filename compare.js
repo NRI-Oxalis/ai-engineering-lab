@@ -33,7 +33,7 @@
         entries.push({ type: 'added', key: value, column: '全列', before: '', after: summary(row) });
         continue;
       }
-      const changedColumns = before.columns.filter((column) => column !== key && oldRow[column] !== row[column]);
+      const changedColumns = before.columns.filter((column) => column !== key && column !== '金額' && oldRow[column] !== row[column]);
       if (changedColumns.length) counts.changed++;
       for (const column of changedColumns) {
         entries.push({ type: 'changed', key: value, column, before: oldRow[column], after: row[column] });
