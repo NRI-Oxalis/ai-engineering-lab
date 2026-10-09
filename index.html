@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSV差分チェック | ai-engineering-lab</title>
+  <style>
+    :root { color-scheme: light; --ink: #172527; --muted: #556769; --line: #cfdbd8; --paper: #f5f8f7; --white: #fff; --teal: #006f69; --mint: #e4f4ed; --rose: #fbe8e3; --gold: #fff0ce; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Trebuchet MS", "Yu Gothic UI", sans-serif; line-height: 1.5; }
+    button, select, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    button:focus-visible, select:focus-visible, input:focus-visible, label:focus-within { outline: 3px solid #da862d; outline-offset: 2px; }
+    header { background: var(--ink); color: #fff; border-bottom: 5px solid var(--teal); }
+    .wrap { max-width: 1160px; margin: auto; padding: 0 28px; }
+    header .wrap { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding-top: 20px; padding-bottom: 20px; }
+    h1 { margin: 0; font-size: 24px; font-weight: 700; }
+    .brand { color: #a7c8c1; font-size: 13px; }
+    main { padding-top: 32px !important; padding-bottom: 64px !important; }
+    h2 { margin: 0 0 16px; font-size: 18px; }
+    .files { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .file-slot { display: grid; gap: 8px; min-width: 0; }
+    .file-slot strong { font-size: 14px; }
+    .file-pick { display: flex; align-items: center; justify-content: center; min-height: 118px; padding: 16px; border: 2px dashed #a0b8b2; background: #fff; color: var(--teal); text-align: center; cursor: pointer; font-weight: 700; }
+    .file-pick:hover, .file-pick.dragover { border-color: var(--teal); background: var(--mint); }
+    .file-pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .filename { margin: 0; min-height: 24px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+    .controls { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; margin: 24px 0 36px; }
+    .control { display: grid; gap: 5px; min-width: 220px; }
+    .control label { font-size: 13px; font-weight: 700; }
+    select { height: 42px; min-width: 180px; padding: 0 12px; border: 1px solid #9fb4af; background: #fff; color: var(--ink); }
+    .action { min-height: 42px; padding: 0 16px; border: 1px solid var(--teal); background: var(--teal); color: #fff; font-weight: 700; }
+    .action.secondary { background: #fff; color: var(--teal); }
+    .status { min-height: 24px; margin: -18px 0 22px; color: #9a352e; font-size: 14px; }
+    .results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding-top: 26px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; }
+    .stat { min-width: 132px; padding: 12px 16px; background: #fff; border-left: 4px solid var(--line); }
+    .stat b { display: block; font-size: 23px; line-height: 1.2; }
+    .stat small { color: var(--muted); }
+    .stat.added { border-color: #15805b; }.stat.changed { border-color: #bc8215; }.stat.removed { border-color: #c05747; }
+    .table-scroll { overflow: auto; max-height: 55vh; border: 1px solid var(--line); background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    th { position: sticky; top: 0; background: #eaf0ee; white-space: nowrap; }
+    td:first-child { font-weight: 700; white-space: nowrap; }.added-row td:first-child { color: #116a4d; }.changed-row td:first-child { color: #94610a; }.removed-row td:first-child { color: #b44336; }
+    td.old { background: var(--rose); } td.new { background: var(--mint); }
+    .empty { padding: 32px 0; color: var(--muted); }
+    @media (max-width: 650px) { .wrap { padding-left: 16px; padding-right: 16px; } header .wrap { display: block; } .brand { display: block; margin-top: 4px; } .files { grid-template-columns: 1fr; } .file-pick { min-height: 84px; } .control, .control select { width: 100%; } .controls .action { flex: 1; } }
+  </style>
+</head>
+<body>
+  <header><div class="wrap"><h1>CSV差分チェック</h1><span class="brand">ai-engineering-lab</span></div></header>
+  <main class="wrap">
+    <section aria-labelledby="files-title">
+      <h2 id="files-title">比較するファイル</h2>
+      <div class="files">
+        <div class="file-slot"><strong>更新前</strong><label class="file-pick" id="before-drop">CSVを選択 / ドロップ<input type="file" id="before" accept=".csv,text/csv"></label><p class="filename" id="before-name">ファイル未選択</p></div>
+        <div class="file-slot"><strong>更新後</strong><label class="file-pick" id="after-drop">CSVを選択 / ドロップ<input type="file" id="after" accept=".csv,text/csv"></label><p class="filename" id="after-name">ファイル未選択</p></div>
+      </div>
+      <div class="controls">
+        <div class="control"><label for="key">照合する列</label><select id="key" disabled><option>ファイルを選択</option></select></div>
+        <button class="action" id="compare" disabled>差分を確認</button>
+        <button class="action secondary" id="download" disabled>結果をCSVで保存</button>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+    <section aria-labelledby="results-title">
+      <div class="results-head"><h2 id="results-title">比較結果</h2></div>
+      <div class="stats" id="stats" hidden>
+        <div class="stat added"><b id="added-count">0</b><small>追加</small></div>
+        <div class="stat changed"><b id="changed-count">0</b><small>変更</small></div>
+        <div class="stat removed"><b id="removed-count">0</b><small>削除</small></div>
+      </div>
+      <div class="table-scroll" id="table-wrap" hidden><table id="results"></table></div>
+      <p class="empty" id="empty">比較結果はここに表示されます。</p>
+    </section>
+  </main>
+  <script src="papaparse.min.js"></script>
+  <script src="compare.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
